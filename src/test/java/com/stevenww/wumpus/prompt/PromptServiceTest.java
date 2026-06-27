@@ -37,5 +37,15 @@ class PromptServiceTest {
         assertEquals("", result);
         verify(llmGateway).generatePrompt("");
     }
+
+    @Test
+    void shouldPassThroughBlankContext() {
+        when(llmGateway.generatePrompt("")).thenReturn("");
+
+        String result = promptService.createPrompt("");
+
+        assertEquals("", result);
+        verify(llmGateway).generatePrompt("");
+    }
 }
 

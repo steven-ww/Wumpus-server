@@ -2,9 +2,9 @@ name: Build, Native, and Deploy
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -13,11 +13,11 @@ permissions:
 
 env:
   JAVA_VERSION: "25"
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  AWS_REGION: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || 'af-south-1' }}
+  ECR_REPOSITORY: ${{ vars.WUMPUS_ECR_REPOSITORY != '' && vars.WUMPUS_ECR_REPOSITORY || 'wumpus-server' }}
   EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
-  CONTAINER_NAME: wumpus-server
-  HOST_PORT: "8081"
+  CONTAINER_NAME: ${{ vars.WUMPUS_CONTAINER_NAME != '' && vars.WUMPUS_CONTAINER_NAME || 'wumpus-server' }}
+  HOST_PORT: ${{ vars.WUMPUS_CONTAINER_PORT != '' && vars.WUMPUS_CONTAINER_PORT || '8081' }}
   CONTAINER_PORT: "8080"
 
 jobs:
@@ -32,27 +32,30 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
           cache: maven
+      - name: Ensure Maven wrapper is executable
+        run: chmod +x ./mvnw
       - name: Build, test, and lint
-        run: mvn -B clean verify
+        run: ./mvnw -B clean verify
 
   native-build:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up GraalVM for native build
-        uses: graalvm/setup-graalvm@v1
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
         with:
-          distribution: graalvm
           java-version: ${{ env.JAVA_VERSION }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          distribution: temurin
           cache: maven
-          native-image-job-reports: true
+      - name: Ensure Maven wrapper is executable
+        run: chmod +x ./mvnw
       - name: Build native executable
-        run: mvn -B -Dnative clean verify
+        run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true verify
 
   docker-native-build-and-push:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: native-build
     runs-on: ubuntu-latest
     outputs:
@@ -60,24 +63,24 @@ jobs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
     steps:
       - uses: actions/checkout@v4
-      - name: Set up GraalVM for containerized native build
-        uses: graalvm/setup-graalvm@v1
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
         with:
-          distribution: graalvm
           java-version: ${{ env.JAVA_VERSION }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          distribution: temurin
           cache: maven
-          native-image-job-reports: true
+      - name: Ensure Maven wrapper is executable
+        run: chmod +x ./mvnw
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN != '' && vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
       - name: Build native runner
-        run: mvn -B -Dnative -DskipTests package
+        run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true -DskipTests package
       - name: Build and push native Docker image
         id: meta
         env:
@@ -92,14 +95,14 @@ jobs:
           echo "image_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: docker-native-build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN != '' && vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       - name: Trigger SSM deploy command
         id: deploy-ssm
@@ -107,27 +110,25 @@ jobs:
           IMAGE_URI: ${{ needs.docker-native-build-and-push.outputs.image_uri }}
           IMAGE_TAG: ${{ needs.docker-native-build-and-push.outputs.image_tag }}
         run: |
-          COMMANDS=$(cat <<'EOF'
-          set -euo pipefail
-          IMAGE="{{IMAGE_URI}}:{{IMAGE_TAG}}"
-          docker pull "$IMAGE"
-          docker rm -f {{CONTAINER_NAME}} || true
-          docker run -d --restart unless-stopped --name {{CONTAINER_NAME}} -p {{HOST_PORT}}:{{CONTAINER_PORT}} "$IMAGE"
-          curl -sf http://localhost:{{HOST_PORT}}/q/health
+          ECR_REGISTRY="${IMAGE_URI%%/*}"
+          cat > ssm-params.json <<EOF
+          {
+            "commands": [
+              "set -euo pipefail",
+              "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}",
+              "docker pull ${IMAGE_URI}:latest",
+              "docker rm -f ${CONTAINER_NAME} || true",
+              "docker run -d --restart unless-stopped --name ${CONTAINER_NAME} -p ${HOST_PORT}:${CONTAINER_PORT} ${IMAGE_URI}:latest",
+              "curl -sf http://localhost:${HOST_PORT}/q/health"
+            ]
+          }
           EOF
-          )
-
-          COMMANDS=${COMMANDS//'{{IMAGE_URI}}'/$IMAGE_URI}
-          COMMANDS=${COMMANDS//'{{IMAGE_TAG}}'/$IMAGE_TAG}
-          COMMANDS=${COMMANDS//'{{CONTAINER_NAME}}'/$CONTAINER_NAME}
-          COMMANDS=${COMMANDS//'{{HOST_PORT}}'/$HOST_PORT}
-          COMMANDS=${COMMANDS//'{{CONTAINER_PORT}}'/$CONTAINER_PORT}
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy wumpus-server image $IMAGE_TAG" \
-            --parameters "commands=$COMMANDS" \
+            --parameters file://ssm-params.json \
             --query "Command.CommandId" \
             --output text)
 
@@ -144,4 +145,9 @@ jobs:
             --instance-id "$EC2_INSTANCE_ID" \
             --query "Status" \
             --output text)
+          aws ssm get-command-invocation \
+            --command-id "${{ steps.deploy-ssm.outputs.command_id }}" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --query "[StandardOutputContent, StandardErrorContent]" \
+            --output text
           test "$STATUS" = "Success"
