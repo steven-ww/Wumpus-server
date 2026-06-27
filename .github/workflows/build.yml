@@ -41,23 +41,6 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: ci
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK 25
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: temurin
-          cache: maven
-      - name: Ensure Maven wrapper is executable
-        run: chmod +x ./mvnw
-      - name: Build native executable
-        run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true verify
-
-  docker-native-build-and-push:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: native-build
-    runs-on: ubuntu-latest
     outputs:
       image_uri: ${{ steps.meta.outputs.image_uri }}
       image_tag: ${{ steps.meta.outputs.image_tag }}
@@ -71,6 +54,8 @@ jobs:
           cache: maven
       - name: Ensure Maven wrapper is executable
         run: chmod +x ./mvnw
+      - name: Build native executable
+        run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true verify
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -79,8 +64,6 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-      - name: Build native runner
-        run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true -DskipTests package
       - name: Build and push native Docker image
         id: meta
         env:
@@ -96,7 +79,7 @@ jobs:
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: docker-native-build-and-push
+    needs: native-build
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials with OIDC
@@ -107,8 +90,8 @@ jobs:
       - name: Trigger SSM deploy command
         id: deploy-ssm
         env:
-          IMAGE_URI: ${{ needs.docker-native-build-and-push.outputs.image_uri }}
-          IMAGE_TAG: ${{ needs.docker-native-build-and-push.outputs.image_tag }}
+          IMAGE_URI: ${{ needs.native-build.outputs.image_uri }}
+          IMAGE_TAG: ${{ needs.native-build.outputs.image_tag }}
         run: |
           ECR_REGISTRY="${IMAGE_URI%%/*}"
           cat > ssm-params.json <<EOF
