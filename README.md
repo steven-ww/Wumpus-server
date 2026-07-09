@@ -5,10 +5,27 @@ Backend service for prompt generation behind the `/wumpus` reverse-proxy prefix 
 - Java 25
 - Maven (wrapper)
 - Quarkus 3.36.3
-- LangChain4j (`io.quarkiverse.langchain4j:quarkus-langchain4j-core`)
+- LangChain4j OpenAI-compatible integration
+  (`io.quarkiverse.langchain4j:quarkus-langchain4j-openai`)
 
 ## API
 Internal service routes (container port `8080`):
+- `POST /api/commentary`
+  - Request (example):
+    ```json
+    {
+      "action": "MOVE",
+      "targetRoom": 5,
+      "outcome": "SAFE",
+      "playerRoom": 5,
+      "adjacentRooms": [1, 2, 3],
+      "hazardWarnings": ["You smell a Wumpus."],
+      "arrowsRemaining": 5,
+      "movesTaken": 3,
+      "previousActionSummaries": ["Moved to room 4"]
+    }
+    ```
+  - Response: `{"commentary":"...","fallback":true}`
 - `POST /api/prompt`
   - Request: `{"context":"..."}`
   - Response: `{"prompt":"..."}`
@@ -17,7 +34,12 @@ Internal service routes (container port `8080`):
 - `GET /q/swagger-ui`
 
 Current behavior:
-- Prompt generation echoes `context` via a layered design:
+- Commentary generation is provider-driven:
+  - `CommentaryResource` → `CommentaryService` → `CommentaryGatewayProducer`
+  - `WUMPUS_LLM_PROVIDER=fallback` (default): deterministic `FallbackCommentaryGateway`
+  - `WUMPUS_LLM_PROVIDER=openai`: `LangChainCommentaryGateway` using
+    `WumpusCommentatorAiService` (`@RegisterAiService`, `@SystemMessage`, `@UserMessage`)
+- Prompt generation still echoes `context` for compatibility:
   - `PromptResource` → `PromptService` → `LlmGateway` (`EchoLlmGateway`)
 
 ## Build and test
@@ -91,7 +113,18 @@ curl -sf http://localhost:8081/q/health
 curl -sf https://api.rwars.steven-webber.com/wumpus/q/health
 ```
 
-3. Prompt endpoint through nginx:
+3. Commentary endpoint through nginx:
+```bash
+curl -sf -X POST https://api.rwars.steven-webber.com/wumpus/api/commentary \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"MOVE","targetRoom":5,"outcome":"SAFE","playerRoom":5,"adjacentRooms":[1,2,3]}'
+```
+Expected response shape:
+```json
+{"commentary":"...","fallback":true}
+```
+
+4. Prompt compatibility endpoint through nginx:
 ```bash
 curl -sf -X POST https://api.rwars.steven-webber.com/wumpus/api/prompt \
   -H 'Content-Type: application/json' \
