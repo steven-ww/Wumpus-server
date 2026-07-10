@@ -39,6 +39,10 @@ Current behavior:
   - `WUMPUS_LLM_PROVIDER=fallback` (default): deterministic `FallbackCommentaryGateway`
   - `WUMPUS_LLM_PROVIDER=openai`: `LangChainCommentaryGateway` using
     `WumpusCommentatorAiService` (`@RegisterAiService`, `@SystemMessage`, `@UserMessage`)
+- Resilience controls:
+  - endpoint rate limit of 1 request/second (`@RateLimit`)
+  - commentary generation timeout capped at 4.5s (`@Timeout`)
+  - deterministic fallback text on timeout, provider errors, or rate-limit rejection
 - Prompt generation still echoes `context` for compatibility:
   - `PromptResource` → `PromptService` → `LlmGateway` (`EchoLlmGateway`)
 
@@ -61,6 +65,7 @@ docker build -f src/main/docker/Dockerfile.native -t quarkus/wumpus-server-nativ
 ## CI/CD variables and secrets
 Required GitHub secret:
 - `AWS_ROLE_ARN`
+- `OPENROUTER_API_KEY` (only needed when `WUMPUS_LLM_PROVIDER=openai`)
 
 Required GitHub variable:
 - `EC2_INSTANCE_ID`
@@ -70,6 +75,11 @@ Optional GitHub variables:
 - `WUMPUS_ECR_REPOSITORY` (default `wumpus-server`)
 - `WUMPUS_CONTAINER_NAME` (default `wumpus-server`)
 - `WUMPUS_CONTAINER_PORT` (default `8081`)
+- `WUMPUS_LLM_PROVIDER` (default `fallback`)
+- `WUMPUS_LLM_BASE_URL` (default `https://openrouter.ai/api/v1`)
+- `WUMPUS_LLM_MODEL` (default `openai/gpt-4o-mini`)
+- `WUMPUS_LLM_TIMEOUT` (default `5s`)
+- `WUMPUS_LLM_MAX_TOKENS` (default `80`)
 
 ## Deployment topology
 - Container listens on `8080` inside Docker.

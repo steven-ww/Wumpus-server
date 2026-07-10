@@ -3,10 +3,13 @@ package com.stevenww.wumpus.commentary;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import org.jboss.logging.Logger;
+import java.time.temporal.ChronoUnit;
 
 import java.util.List;
 import java.util.Locale;
+import org.eclipse.microprofile.faulttolerance.Fallback;
+import org.eclipse.microprofile.faulttolerance.Timeout;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class CommentaryService {
@@ -23,6 +26,8 @@ public class CommentaryService {
     public CommentaryService(@Named("selectedCommentaryGateway") CommentaryGateway commentaryGateway) {
         this.commentaryGateway = commentaryGateway;
     }
+    @Timeout(value = 4500, unit = ChronoUnit.MILLIS)
+    @Fallback(fallbackMethod = "fallbackCommentary")
 
     public CommentaryResponse createCommentary(CommentaryRequest request) {
         CommentaryRequest safeRequest = sanitizeRequest(request);
@@ -36,6 +41,16 @@ public class CommentaryService {
             LOG.debug("Commentary generation failed. Returning deterministic fallback.", ex);
             return new CommentaryResponse(defaultFallbackCommentary(safeRequest), true);
         }
+    }
+    public CommentaryResponse fallbackCommentary(CommentaryRequest request) {
+        return new CommentaryResponse(defaultFallbackCommentary(sanitizeRequest(request)), true);
+    }
+
+    public CommentaryResponse rateLimitedCommentary(CommentaryRequest request) {
+        return new CommentaryResponse(
+                "The narrator is catching their breath between disasters.",
+                true
+        );
     }
 
     private CommentaryRequest sanitizeRequest(CommentaryRequest request) {

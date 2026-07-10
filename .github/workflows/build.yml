@@ -19,6 +19,11 @@ env:
   CONTAINER_NAME: ${{ vars.WUMPUS_CONTAINER_NAME != '' && vars.WUMPUS_CONTAINER_NAME || 'wumpus-server' }}
   HOST_PORT: ${{ vars.WUMPUS_CONTAINER_PORT != '' && vars.WUMPUS_CONTAINER_PORT || '8081' }}
   CONTAINER_PORT: "8080"
+  WUMPUS_LLM_PROVIDER: ${{ vars.WUMPUS_LLM_PROVIDER != '' && vars.WUMPUS_LLM_PROVIDER || 'fallback' }}
+  WUMPUS_LLM_BASE_URL: ${{ vars.WUMPUS_LLM_BASE_URL != '' && vars.WUMPUS_LLM_BASE_URL || 'https://openrouter.ai/api/v1' }}
+  WUMPUS_LLM_MODEL: ${{ vars.WUMPUS_LLM_MODEL != '' && vars.WUMPUS_LLM_MODEL || 'openai/gpt-4o-mini' }}
+  WUMPUS_LLM_TIMEOUT: ${{ vars.WUMPUS_LLM_TIMEOUT != '' && vars.WUMPUS_LLM_TIMEOUT || '5s' }}
+  WUMPUS_LLM_MAX_TOKENS: ${{ vars.WUMPUS_LLM_MAX_TOKENS != '' && vars.WUMPUS_LLM_MAX_TOKENS || '80' }}
 
 jobs:
   ci:
@@ -101,7 +106,7 @@ jobs:
               "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}",
               "docker pull ${IMAGE_URI}:latest",
               "docker rm -f ${CONTAINER_NAME} || true",
-              "docker run -d --restart unless-stopped --name ${CONTAINER_NAME} -p ${HOST_PORT}:${CONTAINER_PORT} ${IMAGE_URI}:latest",
+              "docker run -d --restart unless-stopped --name ${CONTAINER_NAME} -p ${HOST_PORT}:${CONTAINER_PORT} -e WUMPUS_LLM_PROVIDER=${WUMPUS_LLM_PROVIDER} -e WUMPUS_LLM_BASE_URL=${WUMPUS_LLM_BASE_URL} -e WUMPUS_LLM_MODEL=${WUMPUS_LLM_MODEL} -e WUMPUS_LLM_TIMEOUT=${WUMPUS_LLM_TIMEOUT} -e WUMPUS_LLM_MAX_TOKENS=${WUMPUS_LLM_MAX_TOKENS} -e OPENROUTER_API_KEY='${{ secrets.OPENROUTER_API_KEY }}' ${IMAGE_URI}:latest",
               "curl -sf http://localhost:${HOST_PORT}/q/health"
             ]
           }
