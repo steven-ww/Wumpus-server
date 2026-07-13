@@ -28,6 +28,9 @@ class LangChainCommentaryGatewayTest {
 
         CommentaryRequest request = new CommentaryRequest(
                 "MOVE",
+                "MOVE_TO_ROOM",
+                5,
+                List.of(),
                 5,
                 "SAFE",
                 5,

@@ -57,6 +57,9 @@ public class CommentaryService {
         if (request == null) {
             return new CommentaryRequest(
                     "UNKNOWN",
+                    "UNKNOWN",
+                    null,
+                    List.of(),
                     null,
                     "UNKNOWN",
                     null,
@@ -71,6 +74,9 @@ public class CommentaryService {
 
         return new CommentaryRequest(
                 normalizeToken(request.action()),
+                normalizeToken(request.actionIntent()),
+                request.intendedTargetRoom(),
+                sanitizeIntegerList(request.nominatedPath(), 5),
                 request.targetRoom(),
                 normalizeToken(request.outcome()),
                 request.playerRoom(),

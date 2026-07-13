@@ -1,5 +1,5 @@
 # Wumpus Server
-Backend service for prompt generation behind the `/wumpus` reverse-proxy prefix on `api.rwars.steven-webber.com`.
+Backend service for Wumpus commentary generation behind the `/wumpus` reverse-proxy prefix on `api.rwars.steven-webber.com`.
 
 ## Stack
 - Java 25
@@ -15,6 +15,9 @@ Internal service routes (container port `8080`):
     ```json
     {
       "action": "MOVE",
+      "actionIntent": "MOVE_TO_ROOM",
+      "intendedTargetRoom": 5,
+      "nominatedPath": [],
       "targetRoom": 5,
       "outcome": "SAFE",
       "playerRoom": 5,
@@ -26,9 +29,6 @@ Internal service routes (container port `8080`):
     }
     ```
   - Response: `{"commentary":"...","fallback":true}`
-- `POST /api/prompt`
-  - Request: `{"context":"..."}`
-  - Response: `{"prompt":"..."}`
 - `GET /q/health`
 - `GET /q/openapi`
 - `GET /q/swagger-ui`
@@ -43,8 +43,6 @@ Current behavior:
   - endpoint rate limit of 1 request/second (`@RateLimit`)
   - commentary generation timeout capped at 4.5s (`@Timeout`)
   - deterministic fallback text on timeout, provider errors, or rate-limit rejection
-- Prompt generation still echoes `context` for compatibility:
-  - `PromptResource` → `PromptService` → `LlmGateway` (`EchoLlmGateway`)
 
 ## Build and test
 ```bash
@@ -109,7 +107,7 @@ aws ssm send-command \
 ```
 
 Notes:
-- Keep the trailing slash in `proxy_pass http://localhost:8081/;` so nginx strips `/wumpus` and forwards `/api/prompt` correctly.
+- Keep the trailing slash in `proxy_pass http://localhost:8081/;` so nginx strips `/wumpus` and forwards service routes correctly.
 - This route update is intentionally manual and one-time, not part of each deploy run.
 
 ## Smoke tests
@@ -134,13 +132,3 @@ Expected response shape:
 {"commentary":"...","fallback":true}
 ```
 
-4. Prompt compatibility endpoint through nginx:
-```bash
-curl -sf -X POST https://api.rwars.steven-webber.com/wumpus/api/prompt \
-  -H 'Content-Type: application/json' \
-  -d '{"context":"hello"}'
-```
-Expected response:
-```json
-{"prompt":"hello"}
-```

@@ -33,6 +33,9 @@ class CommentaryServiceTest {
 
         CommentaryResponse result = commentaryService.createCommentary(new CommentaryRequest(
                 "move",
+                "move_to_room",
+                5,
+                Arrays.asList(5, null),
                 5,
                 "safe",
                 5,
@@ -49,6 +52,9 @@ class CommentaryServiceTest {
 
         CommentaryRequest sanitized = captor.getValue();
         assertEquals("MOVE", sanitized.action());
+        assertEquals("MOVE_TO_ROOM", sanitized.actionIntent());
+        assertEquals(5, sanitized.intendedTargetRoom());
+        assertEquals(List.of(5), sanitized.nominatedPath());
         assertEquals("SAFE", sanitized.outcome());
         assertEquals(List.of(1, 2, 3), sanitized.adjacentRooms());
         assertEquals(List.of("draft nearby"), sanitized.hazardWarnings());
@@ -63,6 +69,9 @@ class CommentaryServiceTest {
 
         CommentaryResponse result = commentaryService.createCommentary(new CommentaryRequest(
                 "shoot",
+                "shoot_through_caves",
+                11,
+                List.of(9, 10, 11),
                 null,
                 "shot_wumpus",
                 9,
@@ -85,6 +94,9 @@ class CommentaryServiceTest {
 
         CommentaryResponse result = commentaryService.createCommentary(new CommentaryRequest(
                 "shoot",
+                "shoot_through_caves",
+                9,
+                List.of(9),
                 null,
                 "shot_self",
                 9,
@@ -112,6 +124,8 @@ class CommentaryServiceTest {
 
         CommentaryRequest sanitized = captor.getValue();
         assertEquals("UNKNOWN", sanitized.action());
+        assertEquals("UNKNOWN", sanitized.actionIntent());
+        assertEquals(List.of(), sanitized.nominatedPath());
         assertEquals("UNKNOWN", sanitized.outcome());
         assertEquals(List.of(), sanitized.adjacentRooms());
         assertEquals(List.of(), sanitized.hazardWarnings());

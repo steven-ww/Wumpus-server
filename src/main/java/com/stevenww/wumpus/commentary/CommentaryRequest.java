@@ -4,6 +4,9 @@ import java.util.List;
 
 public record CommentaryRequest(
         String action,
+        String actionIntent,
+        Integer intendedTargetRoom,
+        List<Integer> nominatedPath,
         Integer targetRoom,
         String outcome,
         Integer playerRoom,
