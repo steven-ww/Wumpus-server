@@ -1,24 +1,51 @@
 # Wumpus Server
-Backend service for prompt generation behind the `/wumpus` reverse-proxy prefix on `api.rwars.steven-webber.com`.
+Backend service for Wumpus commentary generation behind the `/wumpus` reverse-proxy prefix on `api.rwars.steven-webber.com`.
 
 ## Stack
 - Java 25
 - Maven (wrapper)
 - Quarkus 3.36.3
-- LangChain4j (`io.quarkiverse.langchain4j:quarkus-langchain4j-core`)
+- LangChain4j OpenAI-compatible integration
+  (`io.quarkiverse.langchain4j:quarkus-langchain4j-openai`)
+- LangChain4j Bedrock integration
+  (`io.quarkiverse.langchain4j:quarkus-langchain4j-bedrock`)
 
 ## API
 Internal service routes (container port `8080`):
-- `POST /api/prompt`
-  - Request: `{"context":"..."}`
-  - Response: `{"prompt":"..."}`
+- `POST /api/commentary`
+  - Request (example):
+    ```json
+    {
+      "action": "MOVE",
+      "actionIntent": "MOVE_TO_ROOM",
+      "intendedTargetRoom": 5,
+      "nominatedPath": [],
+      "targetRoom": 5,
+      "outcome": "SAFE",
+      "playerRoom": 5,
+      "adjacentRooms": [1, 2, 3],
+      "hazardWarnings": ["You smell a Wumpus."],
+      "arrowsRemaining": 5,
+      "movesTaken": 3,
+      "previousActionSummaries": ["Moved to room 4"]
+    }
+    ```
+  - Response: `{"commentary":"...","fallback":true}`
 - `GET /q/health`
 - `GET /q/openapi`
 - `GET /q/swagger-ui`
 
 Current behavior:
-- Prompt generation echoes `context` via a layered design:
-  - `PromptResource` → `PromptService` → `LlmGateway` (`EchoLlmGateway`)
+- Commentary generation is provider-driven:
+  - `CommentaryResource` → `CommentaryService` → `CommentaryGatewayProducer`
+  - `WUMPUS_LLM_PROVIDER=fallback` (default): deterministic `FallbackCommentaryGateway`
+  - `WUMPUS_LLM_PROVIDER=openai`: `LangChainCommentaryGateway` using
+    `WumpusCommentatorAiService` (`@RegisterAiService`, `@SystemMessage`, `@UserMessage`)
+  - `WUMPUS_LLM_PROVIDER=bedrock`: same `LangChainCommentaryGateway` using Bedrock model config
+- Resilience controls:
+  - endpoint rate limit of 1 request/second (`@RateLimit`)
+  - commentary generation timeout capped at 4.5s (`@Timeout`)
+  - deterministic fallback text on timeout, provider errors, or rate-limit rejection
 
 ## Build and test
 ```bash
@@ -39,6 +66,8 @@ docker build -f src/main/docker/Dockerfile.native -t quarkus/wumpus-server-nativ
 ## CI/CD variables and secrets
 Required GitHub secret:
 - `AWS_ROLE_ARN`
+- `OPENROUTER_API_KEY` (only needed when `WUMPUS_LLM_PROVIDER=openai`)
+- `AWS_BEARER_TOKEN_BEDROCK` (only needed when `WUMPUS_LLM_PROVIDER=bedrock`)
 
 Required GitHub variable:
 - `EC2_INSTANCE_ID`
@@ -48,6 +77,14 @@ Optional GitHub variables:
 - `WUMPUS_ECR_REPOSITORY` (default `wumpus-server`)
 - `WUMPUS_CONTAINER_NAME` (default `wumpus-server`)
 - `WUMPUS_CONTAINER_PORT` (default `8081`)
+- `WUMPUS_LLM_PROVIDER` (default `fallback`)
+- `WUMPUS_LLM_BASE_URL` (default `https://openrouter.ai/api/v1`)
+- `WUMPUS_LLM_MODEL` (default `openai/gpt-4o-mini`)
+- `WUMPUS_LLM_TIMEOUT` (default `5s`)
+- `WUMPUS_LLM_MAX_TOKENS` (default `80`)
+- `WUMPUS_LLM_LANGCHAIN_PROVIDER` (`openai` or `bedrock`; default `openai`)
+- `WUMPUS_BEDROCK_REGION` (default `us-east-1`)
+- `WUMPUS_BEDROCK_MODEL_ID` (default `us.amazon.nova-lite-v1:0`)
 
 ## Deployment topology
 - Container listens on `8080` inside Docker.
@@ -77,7 +114,7 @@ aws ssm send-command \
 ```
 
 Notes:
-- Keep the trailing slash in `proxy_pass http://localhost:8081/;` so nginx strips `/wumpus` and forwards `/api/prompt` correctly.
+- Keep the trailing slash in `proxy_pass http://localhost:8081/;` so nginx strips `/wumpus` and forwards service routes correctly.
 - This route update is intentionally manual and one-time, not part of each deploy run.
 
 ## Smoke tests
@@ -91,13 +128,14 @@ curl -sf http://localhost:8081/q/health
 curl -sf https://api.rwars.steven-webber.com/wumpus/q/health
 ```
 
-3. Prompt endpoint through nginx:
+3. Commentary endpoint through nginx:
 ```bash
-curl -sf -X POST https://api.rwars.steven-webber.com/wumpus/api/prompt \
+curl -sf -X POST https://api.rwars.steven-webber.com/wumpus/api/commentary \
   -H 'Content-Type: application/json' \
-  -d '{"context":"hello"}'
+  -d '{"action":"MOVE","targetRoom":5,"outcome":"SAFE","playerRoom":5,"adjacentRooms":[1,2,3]}'
 ```
-Expected response:
+Expected response shape:
 ```json
-{"prompt":"hello"}
+{"commentary":"...","fallback":true}
 ```
+

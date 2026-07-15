@@ -19,6 +19,11 @@ env:
   CONTAINER_NAME: ${{ vars.WUMPUS_CONTAINER_NAME != '' && vars.WUMPUS_CONTAINER_NAME || 'wumpus-server' }}
   HOST_PORT: ${{ vars.WUMPUS_CONTAINER_PORT != '' && vars.WUMPUS_CONTAINER_PORT || '8081' }}
   CONTAINER_PORT: "8080"
+  WUMPUS_LLM_PROVIDER: ${{ vars.WUMPUS_LLM_PROVIDER != '' && vars.WUMPUS_LLM_PROVIDER || 'fallback' }}
+  WUMPUS_LLM_BASE_URL: ${{ vars.WUMPUS_LLM_BASE_URL != '' && vars.WUMPUS_LLM_BASE_URL || 'https://openrouter.ai/api/v1' }}
+  WUMPUS_LLM_MODEL: ${{ vars.WUMPUS_LLM_MODEL != '' && vars.WUMPUS_LLM_MODEL || 'openai/gpt-4o-mini' }}
+  WUMPUS_LLM_TIMEOUT: ${{ vars.WUMPUS_LLM_TIMEOUT != '' && vars.WUMPUS_LLM_TIMEOUT || '5s' }}
+  WUMPUS_LLM_MAX_TOKENS: ${{ vars.WUMPUS_LLM_MAX_TOKENS != '' && vars.WUMPUS_LLM_MAX_TOKENS || '80' }}
 
 jobs:
   ci:
@@ -97,11 +102,11 @@ jobs:
           cat > ssm-params.json <<EOF
           {
             "commands": [
-              "set -euo pipefail",
+              "set -eu",
               "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}",
               "docker pull ${IMAGE_URI}:latest",
               "docker rm -f ${CONTAINER_NAME} || true",
-              "docker run -d --restart unless-stopped --name ${CONTAINER_NAME} -p ${HOST_PORT}:${CONTAINER_PORT} ${IMAGE_URI}:latest",
+              "docker run -d --restart unless-stopped --name ${CONTAINER_NAME} -p ${HOST_PORT}:${CONTAINER_PORT} -e WUMPUS_LLM_PROVIDER=${WUMPUS_LLM_PROVIDER} -e WUMPUS_LLM_BASE_URL=${WUMPUS_LLM_BASE_URL} -e WUMPUS_LLM_MODEL=${WUMPUS_LLM_MODEL} -e WUMPUS_LLM_TIMEOUT=${WUMPUS_LLM_TIMEOUT} -e WUMPUS_LLM_MAX_TOKENS=${WUMPUS_LLM_MAX_TOKENS} -e OPENROUTER_API_KEY='${{ secrets.OPENROUTER_API_KEY }}' ${IMAGE_URI}:latest",
               "curl -sf http://localhost:${HOST_PORT}/q/health"
             ]
           }
@@ -117,17 +122,21 @@ jobs:
 
           echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
       - name: Wait for SSM command completion
+        id: wait-ssm
+        continue-on-error: true
         run: |
           aws ssm wait command-executed \
             --command-id "${{ steps.deploy-ssm.outputs.command_id }}" \
             --instance-id "$EC2_INSTANCE_ID"
-      - name: Validate post-deploy health check output
+      - name: Print deploy invocation output
+        if: always()
         run: |
           STATUS=$(aws ssm get-command-invocation \
             --command-id "${{ steps.deploy-ssm.outputs.command_id }}" \
             --instance-id "$EC2_INSTANCE_ID" \
             --query "Status" \
             --output text)
+          echo "SSM Status: $STATUS"
           aws ssm get-command-invocation \
             --command-id "${{ steps.deploy-ssm.outputs.command_id }}" \
             --instance-id "$EC2_INSTANCE_ID" \

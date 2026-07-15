@@ -12,7 +12,7 @@ flowchart LR
   DEP --> EC2[EC2 instance]
   EC2 --> DOCKER[Docker container<br/>wumpus-server: 8080]
   EC2 --> NGINX[nginx reverse proxy]
-  NGINX --> CLIENT[Client calls /wumpus/api/prompt]
+  NGINX --> CLIENT[Client calls /wumpus/api/commentary]
 ```
 
 ## Runtime topology
@@ -128,8 +128,8 @@ Use these smoke tests after deployment:
 2. Public routed health:
 `curl -sf https://api.rwars.steven-webber.com/wumpus/q/health`
 
-3. Prompt endpoint:
-`curl -sf -X POST https://api.rwars.steven-webber.com/wumpus/api/prompt -H 'Content-Type: application/json' -d '{"context":"hello"}'`
+3. Commentary endpoint:
+`curl -sf -X POST https://api.rwars.steven-webber.com/wumpus/api/commentary -H 'Content-Type: application/json' -d '{\"action\":\"MOVE\",\"targetRoom\":5,\"outcome\":\"SAFE\",\"playerRoom\":5,\"adjacentRooms\":[1,2,3]}'`
 
-Expected response:
-`{"prompt":"hello"}`
+Expected response shape:
+`{\"commentary\":\"...\",\"fallback\":true}`
