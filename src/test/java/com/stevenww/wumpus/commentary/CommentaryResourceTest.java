@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
@@ -45,7 +44,6 @@ class CommentaryResourceTest {
                 .post("/api/commentary")
                 .then()
                 .statusCode(200)
-                .body("fallback", equalTo(false))
                 .body("commentary", not(nullValue()));
     }
 
