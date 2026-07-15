@@ -2,7 +2,6 @@ package com.stevenww.wumpus.commentary;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import java.time.temporal.ChronoUnit;
 
 import java.util.List;
@@ -23,7 +22,7 @@ public class CommentaryService {
     private final CommentaryGateway commentaryGateway;
 
     @Inject
-    public CommentaryService(@Named("selectedCommentaryGateway") CommentaryGateway commentaryGateway) {
+    public CommentaryService(CommentaryGateway commentaryGateway) {
         this.commentaryGateway = commentaryGateway;
     }
     @Timeout(value = 4500, unit = ChronoUnit.MILLIS)

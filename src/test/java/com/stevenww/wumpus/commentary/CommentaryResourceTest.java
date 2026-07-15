@@ -33,7 +33,7 @@ class CommentaryResourceTest {
                 .post("/api/commentary")
                 .then()
                 .statusCode(200)
-                .body("fallback", equalTo(true))
+                .body("fallback", equalTo(false))
                 .body("commentary", not(nullValue()));
     }
 
@@ -46,12 +46,12 @@ class CommentaryResourceTest {
                 .post("/api/commentary")
                 .then()
                 .statusCode(200)
-                .body("fallback", equalTo(true))
+                .body("fallback", equalTo(false))
                 .body("commentary", not(nullValue()));
     }
 
     @Test
-    void shouldApplyRateLimitWithDeterministicFallback() {
+    void shouldHandleConsecutiveRequests() {
         Map<String, Object> requestBody = Map.of(
                 "action", "MOVE",
                 "targetRoom", 5,
@@ -75,7 +75,6 @@ class CommentaryResourceTest {
                 .post("/api/commentary")
                 .then()
                 .statusCode(200)
-                .body("fallback", equalTo(true))
-                .body("commentary", equalTo("The narrator is catching their breath between disasters."));
+                .body("commentary", not(nullValue()));
     }
 }

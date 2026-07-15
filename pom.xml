@@ -64,11 +64,6 @@
         </dependency>
         <dependency>
             <groupId>io.quarkiverse.langchain4j</groupId>
-            <artifactId>quarkus-langchain4j-openai</artifactId>
-            <version>${quarkiverse.langchain4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkiverse.langchain4j</groupId>
             <artifactId>quarkus-langchain4j-bedrock</artifactId>
             <version>${quarkiverse.langchain4j.version}</version>
         </dependency>

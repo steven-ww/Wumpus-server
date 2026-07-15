@@ -42,6 +42,7 @@ Configure the following in GitHub Actions settings:
 
 Required secret:
 - `AWS_ROLE_ARN`
+- `AWS_BEARER_TOKEN_BEDROCK`
 
 Required variable:
 - `EC2_INSTANCE_ID`
@@ -51,6 +52,8 @@ Optional variables:
 - `WUMPUS_ECR_REPOSITORY` (default: `wumpus-server`)
 - `WUMPUS_CONTAINER_NAME` (default: `wumpus-server`)
 - `WUMPUS_CONTAINER_PORT` (default: `8081`)
+- `WUMPUS_BEDROCK_REGION` (default: `us-east-1`)
+- `WUMPUS_BEDROCK_MODEL_ID` (default: `us.amazon.nova-lite-v1:0`)
 
 ### 2) AWS OIDC trust for GitHub Actions
 The IAM role referenced by `AWS_ROLE_ARN` must trust GitHub's OIDC provider and allow this repository to call `sts:AssumeRoleWithWebIdentity`.
@@ -116,7 +119,7 @@ location /wumpus/ {
    - login to ECR
    - pull latest image
    - remove old container
-   - start new container with `--restart unless-stopped`
+   - start new container with `--restart unless-stopped`, injecting Bedrock runtime env (`WUMPUS_BEDROCK_REGION`, `WUMPUS_BEDROCK_MODEL_ID`, `AWS_BEARER_TOKEN_BEDROCK`)
    - run health check on `localhost:8081/q/health`
 
 ## Operational validation

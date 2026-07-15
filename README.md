@@ -5,8 +5,6 @@ Backend service for Wumpus commentary generation behind the `/wumpus` reverse-pr
 - Java 25
 - Maven (wrapper)
 - Quarkus 3.36.3
-- LangChain4j OpenAI-compatible integration
-  (`io.quarkiverse.langchain4j:quarkus-langchain4j-openai`)
 - LangChain4j Bedrock integration
   (`io.quarkiverse.langchain4j:quarkus-langchain4j-bedrock`)
 
@@ -36,12 +34,8 @@ Internal service routes (container port `8080`):
 - `GET /q/swagger-ui`
 
 Current behavior:
-- Commentary generation is provider-driven:
-  - `CommentaryResource` → `CommentaryService` → `CommentaryGatewayProducer`
-  - `WUMPUS_LLM_PROVIDER=fallback` (default): deterministic `FallbackCommentaryGateway`
-  - `WUMPUS_LLM_PROVIDER=openai`: `LangChainCommentaryGateway` using
-    `WumpusCommentatorAiService` (`@RegisterAiService`, `@SystemMessage`, `@UserMessage`)
-  - `WUMPUS_LLM_PROVIDER=bedrock`: same `LangChainCommentaryGateway` using Bedrock model config
+- Commentary generation uses Bedrock through `LangChainCommentaryGateway`
+  (`CommentaryResource` → `CommentaryService` → `LangChainCommentaryGateway`).
 - Resilience controls:
   - endpoint rate limit of 1 request/second (`@RateLimit`)
   - commentary generation timeout capped at 4.5s (`@Timeout`)
@@ -66,8 +60,7 @@ docker build -f src/main/docker/Dockerfile.native -t quarkus/wumpus-server-nativ
 ## CI/CD variables and secrets
 Required GitHub secret:
 - `AWS_ROLE_ARN`
-- `OPENROUTER_API_KEY` (only needed when `WUMPUS_LLM_PROVIDER=openai`)
-- `AWS_BEARER_TOKEN_BEDROCK` (only needed when `WUMPUS_LLM_PROVIDER=bedrock`)
+- `AWS_BEARER_TOKEN_BEDROCK`
 
 Required GitHub variable:
 - `EC2_INSTANCE_ID`
@@ -77,12 +70,6 @@ Optional GitHub variables:
 - `WUMPUS_ECR_REPOSITORY` (default `wumpus-server`)
 - `WUMPUS_CONTAINER_NAME` (default `wumpus-server`)
 - `WUMPUS_CONTAINER_PORT` (default `8081`)
-- `WUMPUS_LLM_PROVIDER` (default `fallback`)
-- `WUMPUS_LLM_BASE_URL` (default `https://openrouter.ai/api/v1`)
-- `WUMPUS_LLM_MODEL` (default `openai/gpt-4o-mini`)
-- `WUMPUS_LLM_TIMEOUT` (default `5s`)
-- `WUMPUS_LLM_MAX_TOKENS` (default `80`)
-- `WUMPUS_LLM_LANGCHAIN_PROVIDER` (`openai` or `bedrock`; default `openai`)
 - `WUMPUS_BEDROCK_REGION` (default `us-east-1`)
 - `WUMPUS_BEDROCK_MODEL_ID` (default `us.amazon.nova-lite-v1:0`)
 
