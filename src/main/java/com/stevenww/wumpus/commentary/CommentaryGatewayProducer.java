@@ -20,12 +20,16 @@ public class CommentaryGatewayProducer {
             Instance<LangChainCommentaryGateway> langChainGatewayInstance
     ) {
         String normalizedProvider = provider == null ? "fallback" : provider.trim().toLowerCase();
-        if ("openai".equals(normalizedProvider) && langChainGatewayInstance.isResolvable()) {
-            LOG.info("Using OpenAI commentary gateway.");
+        if (("openai".equals(normalizedProvider) || "bedrock".equals(normalizedProvider))
+                && langChainGatewayInstance.isResolvable()) {
+            LOG.infof("Using %s commentary gateway.", normalizedProvider);
             return langChainGatewayInstance.get();
         }
-        if ("openai".equals(normalizedProvider)) {
-            LOG.warn("OpenAI provider requested but unavailable. Falling back to deterministic gateway.");
+        if ("openai".equals(normalizedProvider) || "bedrock".equals(normalizedProvider)) {
+            LOG.warnf(
+                    "%s provider requested but unavailable. Falling back to deterministic gateway.",
+                    normalizedProvider
+            );
         } else {
             LOG.infof("Using fallback commentary gateway for provider '%s'.", normalizedProvider);
         }

@@ -5,7 +5,7 @@ import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import io.quarkiverse.langchain4j.RegisterAiService;
 
-@RegisterAiService
+@RegisterAiService(modelName = "wumpus-commentary")
 @SystemMessage("""
         You are the sardonic narrator of a Hunt the Wumpus game.
         Mock the player's decisions with dry humour.

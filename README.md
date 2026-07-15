@@ -7,6 +7,8 @@ Backend service for Wumpus commentary generation behind the `/wumpus` reverse-pr
 - Quarkus 3.36.3
 - LangChain4j OpenAI-compatible integration
   (`io.quarkiverse.langchain4j:quarkus-langchain4j-openai`)
+- LangChain4j Bedrock integration
+  (`io.quarkiverse.langchain4j:quarkus-langchain4j-bedrock`)
 
 ## API
 Internal service routes (container port `8080`):
@@ -39,6 +41,7 @@ Current behavior:
   - `WUMPUS_LLM_PROVIDER=fallback` (default): deterministic `FallbackCommentaryGateway`
   - `WUMPUS_LLM_PROVIDER=openai`: `LangChainCommentaryGateway` using
     `WumpusCommentatorAiService` (`@RegisterAiService`, `@SystemMessage`, `@UserMessage`)
+  - `WUMPUS_LLM_PROVIDER=bedrock`: same `LangChainCommentaryGateway` using Bedrock model config
 - Resilience controls:
   - endpoint rate limit of 1 request/second (`@RateLimit`)
   - commentary generation timeout capped at 4.5s (`@Timeout`)
@@ -64,6 +67,7 @@ docker build -f src/main/docker/Dockerfile.native -t quarkus/wumpus-server-nativ
 Required GitHub secret:
 - `AWS_ROLE_ARN`
 - `OPENROUTER_API_KEY` (only needed when `WUMPUS_LLM_PROVIDER=openai`)
+- `AWS_BEARER_TOKEN_BEDROCK` (only needed when `WUMPUS_LLM_PROVIDER=bedrock`)
 
 Required GitHub variable:
 - `EC2_INSTANCE_ID`
@@ -78,6 +82,9 @@ Optional GitHub variables:
 - `WUMPUS_LLM_MODEL` (default `openai/gpt-4o-mini`)
 - `WUMPUS_LLM_TIMEOUT` (default `5s`)
 - `WUMPUS_LLM_MAX_TOKENS` (default `80`)
+- `WUMPUS_LLM_LANGCHAIN_PROVIDER` (`openai` or `bedrock`; default `openai`)
+- `WUMPUS_BEDROCK_REGION` (default `us-east-1`)
+- `WUMPUS_BEDROCK_MODEL_ID` (default `us.amazon.nova-lite-v1:0`)
 
 ## Deployment topology
 - Container listens on `8080` inside Docker.

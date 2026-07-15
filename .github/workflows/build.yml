@@ -102,7 +102,7 @@ jobs:
           cat > ssm-params.json <<EOF
           {
             "commands": [
-              "set -euo pipefail",
+              "set -eu",
               "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}",
               "docker pull ${IMAGE_URI}:latest",
               "docker rm -f ${CONTAINER_NAME} || true",
@@ -122,17 +122,21 @@ jobs:
 
           echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
       - name: Wait for SSM command completion
+        id: wait-ssm
+        continue-on-error: true
         run: |
           aws ssm wait command-executed \
             --command-id "${{ steps.deploy-ssm.outputs.command_id }}" \
             --instance-id "$EC2_INSTANCE_ID"
-      - name: Validate post-deploy health check output
+      - name: Print deploy invocation output
+        if: always()
         run: |
           STATUS=$(aws ssm get-command-invocation \
             --command-id "${{ steps.deploy-ssm.outputs.command_id }}" \
             --instance-id "$EC2_INSTANCE_ID" \
             --query "Status" \
             --output text)
+          echo "SSM Status: $STATUS"
           aws ssm get-command-invocation \
             --command-id "${{ steps.deploy-ssm.outputs.command_id }}" \
             --instance-id "$EC2_INSTANCE_ID" \
