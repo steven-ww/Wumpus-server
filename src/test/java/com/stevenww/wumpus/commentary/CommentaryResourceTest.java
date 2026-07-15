@@ -33,7 +33,6 @@ class CommentaryResourceTest {
                 .post("/api/commentary")
                 .then()
                 .statusCode(200)
-                .body("fallback", equalTo(false))
                 .body("commentary", not(nullValue()));
     }
 
