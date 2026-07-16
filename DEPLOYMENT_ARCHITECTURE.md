@@ -53,7 +53,7 @@ Optional variables:
 - `WUMPUS_CONTAINER_NAME` (default: `wumpus-server`)
 - `WUMPUS_CONTAINER_PORT` (default: `8081`)
 - `WUMPUS_BEDROCK_REGION` (default: `us-east-1`)
-- `WUMPUS_BEDROCK_MODEL_ID` (default: `us.amazon.nova-lite-v1:0`)
+- `WUMPUS_BEDROCK_MODEL_ID` (default: `amazon.nova-lite-v1:0`)
 
 ### 2) AWS OIDC trust for GitHub Actions
 The IAM role referenced by `AWS_ROLE_ARN` must trust GitHub's OIDC provider and allow this repository to call `sts:AssumeRoleWithWebIdentity`.
