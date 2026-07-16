@@ -104,7 +104,7 @@ jobs:
               "docker pull ${IMAGE_URI}:latest",
               "docker rm -f ${CONTAINER_NAME} || true",
               "docker run -d --restart unless-stopped --name ${CONTAINER_NAME} -p ${HOST_PORT}:${CONTAINER_PORT} -e WUMPUS_BEDROCK_REGION=${WUMPUS_BEDROCK_REGION} -e WUMPUS_BEDROCK_MODEL_ID=${WUMPUS_BEDROCK_MODEL_ID} -e AWS_BEARER_TOKEN_BEDROCK='${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}' ${IMAGE_URI}:latest",
-              "curl -sf http://localhost:${HOST_PORT}/q/health"
+              "curl -sf --retry 30 --retry-all-errors --retry-delay 2 http://localhost:${HOST_PORT}/q/health || (docker ps -a --filter name=${CONTAINER_NAME}; docker logs --tail 200 ${CONTAINER_NAME} || true; exit 1)"
             ]
           }
           EOF
