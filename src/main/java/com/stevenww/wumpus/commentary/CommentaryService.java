@@ -33,19 +33,22 @@ public class CommentaryService {
         try {
             String generated = normalizeText(commentaryGateway.generateCommentary(safeRequest), MAX_COMMENTARY_LENGTH);
             if (generated.isBlank()) {
+                LOG.warn("Commentary gateway returned blank response. Using deterministic fallback.");
                 return new CommentaryResponse(defaultFallbackCommentary(safeRequest), true);
             }
             return new CommentaryResponse(generated, commentaryGateway.isFallbackGateway());
         } catch (RuntimeException ex) {
-            LOG.debug("Commentary generation failed. Returning deterministic fallback.", ex);
+            LOG.warn("Commentary generation failed. Returning deterministic fallback.", ex);
             return new CommentaryResponse(defaultFallbackCommentary(safeRequest), true);
         }
     }
     public CommentaryResponse fallbackCommentary(CommentaryRequest request) {
+        LOG.warn("Commentary request timed out. Returning deterministic fallback.");
         return new CommentaryResponse(defaultFallbackCommentary(sanitizeRequest(request)), true);
     }
 
     public CommentaryResponse rateLimitedCommentary(CommentaryRequest request) {
+        LOG.warn("Commentary request rate limited. Returning deterministic fallback.");
         return new CommentaryResponse(
                 "The narrator is catching their breath between disasters.",
                 true
