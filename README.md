@@ -71,7 +71,7 @@ Optional GitHub variables:
 - `WUMPUS_CONTAINER_NAME` (default `wumpus-server`)
 - `WUMPUS_CONTAINER_PORT` (default `8081`)
 - `WUMPUS_BEDROCK_REGION` (default `us-east-1`)
-- `WUMPUS_BEDROCK_MODEL_ID` (default `us.amazon.nova-lite-v1:0`)
+- `WUMPUS_BEDROCK_MODEL_ID` (default `amazon.nova-lite-v1:0`)
 
 ## Deployment topology
 - Container listens on `8080` inside Docker.
