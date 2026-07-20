@@ -19,7 +19,8 @@ import io.quarkiverse.langchain4j.RegisterAiService;
 public interface WumpusCommentatorAiService {
     @UserMessage("""
             Given this resolved game action snapshot, write one sardonic narrator comment.
-            Final end game states (out of arrows, pit death or eaten by the Wumpus) should be acknowledged with a final comment.
+            Final end game states (out of arrows, pit death or eaten by the Wumpus) should be acknowledged with
+             a final comment.
             Return only the comment text, no JSON, no labels.
             Snapshot:
             {{snapshotJson}}
